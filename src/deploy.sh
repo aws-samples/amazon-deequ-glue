@@ -1,0 +1,117 @@
+#!/bin/bash
+nflag=false
+pflag=false
+rflag=false
+
+DIRNAME=$(pwd)
+
+usage () { echo "
+    -h -- Opens up this help message
+    -n -- Name of the CloudFormation stack
+    -p -- Name of the AWS profile to use
+    -r -- AWS Region to use
+"; }
+options=':n:p:r:h'
+while getopts $options option
+do
+    case "$option" in
+        n  ) nflag=true; STACK_NAME=$OPTARG;;
+        p  ) pflag=true; PROFILE=$OPTARG;;
+        r  ) rflag=true; REGION=$OPTARG;;
+        h  ) usage; exit;;
+        \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
+        :  ) echo "Missing option argument for -$OPTARG" >&2; exit 1;;
+        *  ) echo "Unimplemented option: -$OPTARG" >&2; exit 1;;
+    esac
+done
+
+if ! $pflag
+then
+    echo "-p not specified, using default..." >&2
+    PROFILE="default"
+fi
+if ! $nflag
+then
+    STACK_NAME="amazon-deequ-glue"
+fi
+if ! $rflag
+then
+    echo "-r not specified, using default region..." >&2
+    REGION=$(aws configure get region --profile $PROFILE)
+fi
+
+ACCOUNT=$(aws sts get-caller-identity --query 'Account' --output text --profile $PROFILE)
+
+echo "Creating CloudFormation Artifacts Bucket..."
+S3_BUCKET=amazon-deequ-glue-$REGION-$ACCOUNT
+if ! aws s3 ls $S3_BUCKET --profile $PROFILE; then
+  echo "S3 bucket named $S3_BUCKET does not exist. Creating."
+  aws s3 mb s3://$S3_BUCKET --region $REGION --profile $PROFILE
+  aws ssm put-parameter --region $REGION --profile $PROFILE --name "/DataQuality/S3/ArtifactsBucket" --value $S3_BUCKET --type String --overwrite
+  aws s3api put-bucket-encryption \
+    --profile $PROFILE \
+    --bucket $S3_BUCKET \
+    --server-side-encryption-configuration '{"Rules": [{"ApplyServerSideEncryptionByDefault": {"SSEAlgorithm": "AES256"}}]}'
+  aws s3api put-public-access-block \
+    --profile $PROFILE \
+    --bucket $S3_BUCKET \
+    --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+else
+  echo "Bucket $S3_BUCKET exists already."
+fi
+
+mkdir $DIRNAME/output
+aws cloudformation package --profile $PROFILE --region $REGION --template-file $DIRNAME/template.yaml --s3-bucket $S3_BUCKET --s3-prefix deequ/templates --output-template-file $DIRNAME/output/packaged-template.yaml
+
+echo "Checking if stack exists ..."
+if ! aws cloudformation describe-stacks --profile $PROFILE  --region $REGION --stack-name $STACK_NAME; then
+  echo -e "Stack does not exist, creating ..."
+  aws cloudformation create-stack \
+    --profile $PROFILE \
+    --region $REGION \
+    --stack-name $STACK_NAME \
+    --template-body file://$DIRNAME/output/packaged-template.yaml \
+    --tags file://$DIRNAME/tags.json \
+    --capabilities "CAPABILITY_NAMED_IAM" "CAPABILITY_AUTO_EXPAND"
+
+  echo "Waiting for stack to be created ..."
+  aws cloudformation wait stack-create-complete --profile $PROFILE --region $REGION \
+    --stack-name $STACK_NAME
+else
+  echo -e "Stack exists, attempting update ..."
+
+  set +e
+  update_output=$( aws cloudformation update-stack \
+    --profile $PROFILE \
+    --region $REGION \
+    --stack-name $STACK_NAME \
+    --template-body file://$DIRNAME/output/packaged-template.yaml \
+    --tags file://$DIRNAME/tags.json \
+    --capabilities "CAPABILITY_NAMED_IAM" "CAPABILITY_AUTO_EXPAND" 2>&1)
+  status=$?
+  set -e
+
+  echo "$update_output"
+
+  if [ $status -ne 0 ] ; then
+    # Don't fail for no-op update
+    if [[ $update_output == *"ValidationError"* && $update_output == *"No updates"* ]] ; then
+      echo -e "\nFinished create/update - no updates to be performed";
+      exit 0;
+    else
+      exit $status
+    fi
+  fi
+
+  echo "Waiting for stack update to complete ..."
+  aws cloudformation wait stack-update-complete --profile $PROFILE --region $REGION \
+    --stack-name $STACK_NAME 
+  echo "Finished create/update successfully!"
+fi
+
+echo "Loading Deequ scripts ..."
+aws s3 cp ./scripts/deequ/deequ-1.0.3-RC1.jar s3://$S3_BUCKET/deequ/jars/ --profile $PROFILE
+aws s3 cp ./scripts/deequ/deequ-controller.py s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
+aws s3 cp ./scripts/deequ/deequ-suggestion-analysis-verification-runner.scala s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
+aws s3 cp ./scripts/deequ/deequ-analysis-verification-runner.scala s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
+aws s3 cp ./scripts/deequ/deequ-profile-runner.scala s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
