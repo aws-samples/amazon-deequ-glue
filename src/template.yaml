@@ -1,3 +1,5 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Description: Data Quality with Deequ on AWS Glue
@@ -218,7 +220,7 @@ Resources:
   rGlueCrawlerLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: ./lambda/crawl-data/src
+      CodeUri: ./main/utils/crawl-data/src
       FunctionName: data-quality-crawl-data
       Description: Glue crawler
       Environment:
