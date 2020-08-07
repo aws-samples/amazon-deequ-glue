@@ -1,3 +1,5 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
 import com.amazonaws.services.glue.ChoiceOption
 import com.amazonaws.services.glue.GlueContext
 import com.amazonaws.services.glue.MappingSpec
