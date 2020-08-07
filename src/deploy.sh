@@ -110,8 +110,6 @@ else
 fi
 
 echo "Loading Deequ scripts ..."
-aws s3 cp ./scripts/deequ/deequ-1.0.3-RC1.jar s3://$S3_BUCKET/deequ/jars/ --profile $PROFILE
-aws s3 cp ./scripts/deequ/deequ-controller.py s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
-aws s3 cp ./scripts/deequ/deequ-suggestion-analysis-verification-runner.scala s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
-aws s3 cp ./scripts/deequ/deequ-analysis-verification-runner.scala s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
-aws s3 cp ./scripts/deequ/deequ-profile-runner.scala s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
+aws s3 sync ./main/scala/deequ/ s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
+aws s3 cp ./main/resources/deequ-1.0.3-RC1.jar s3://$S3_BUCKET/deequ/jars/ --profile $PROFILE
+aws s3 cp ./main/utils/deequ-controller/deequ-controller.py s3://$S3_BUCKET/deequ/scripts/ --profile $PROFILE
