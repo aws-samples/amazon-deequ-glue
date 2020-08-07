@@ -1,0 +1,398 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Data Quality with Deequ on AWS Glue
+
+Parameters:
+  pArtifactsBucket:
+    Description: The artifacts bucket for the solution
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /DataQuality/S3/ArtifactsBucket
+
+Globals:
+  Function:
+      Runtime: python3.7
+      Handler: lambda_function.lambda_handler
+
+Resources:
+  ######## EVENTS #########
+  rDataQualityTriggerEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Trigger Data Quality Step Function every 30 minutes
+      State: DISABLED
+      ScheduleExpression: "cron(*/30 * * * ? *)"
+      Targets:
+        - Id: data-quality-event-rule
+          Arn: !Ref rDataQualityStateMachine
+          RoleArn: !GetAtt rEventTriggerRole.Arn
+          Input: |
+            {
+              "glueDatabase": "default",
+              "glueTables": "table1,table2"
+            }
+
+  ####### S3 #########
+  rDataQualityBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub data-quality-${AWS::Region}-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+
+  ####### DYNAMODB #########
+  rDataQualitySuggestionsDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: suggestion_hash_key
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: suggestion_hash_key
+          AttributeType: S
+        - AttributeName: table_hash_key
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: table-index
+          KeySchema:
+            - AttributeName: table_hash_key
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TableName: DataQualitySuggestions
+
+  rDataQualityAnalysisDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: analysis_hash_key
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: analysis_hash_key
+          AttributeType: S
+        - AttributeName: table_hash_key
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: table-index
+          KeySchema:
+            - AttributeName: table_hash_key
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TableName: DataQualityAnalysis
+
+  ######## IAM #########
+  rCommonIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+            Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*
+              - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/glue/*
+          - Effect: Allow
+            Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:DeleteItem
+              - dynamodb:UpdateItem
+              - dynamodb:PutItem
+            Resource:
+            - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/DataQuality*
+
+  rGlueJobsIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - glue.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - !Ref rCommonIAMPolicy
+
+  rGlueCrawlerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - !Ref rCommonIAMPolicy
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: data-quality-crawl
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow
+              Action:
+                - glue:StartCrawler
+              Resource:
+                - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${rGlueCrawler}
+
+  rStatesExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - !Sub states.${AWS::Region}.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: data-quality-states-execution
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt rGlueCrawlerLambdaFunction.Arn
+              - Effect: Allow
+                Action:
+                  - glue:StartJobRun
+                  - glue:GetJobRun*
+                Resource:
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${rControllerGlueJob}
+
+  rEventTriggerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - events.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: data-quality-trigger
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - states:StartExecution
+                Resource:  !Ref rDataQualityStateMachine
+
+  ######## LAMBDA #########
+  rGlueCrawlerLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./lambda/crawl-data/src
+      FunctionName: data-quality-crawl-data
+      Description: Glue crawler
+      Environment:
+        Variables:
+          GLUE_CRAWLER: !Ref rGlueCrawler
+      MemorySize: 256
+      Timeout: 120
+      Role: !GetAtt rGlueCrawlerRole.Arn
+
+  ######## STEP FUNCTIONS #########
+  rDataQualityStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: data-quality-sm
+      DefinitionString:
+        !Sub
+          - |-
+            {
+              "Comment": "Data Quality WorkFlow",
+              "StartAt": "Data Quality Controller",
+              "States": {
+                "Data Quality Controller": {
+                  "Type": "Task",
+                  "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                  "Parameters": {
+                    "JobName": "${gController}",
+                    "Arguments": {
+                      "--glueDatabase.$":"$.glueDatabase",
+                      "--glueTables.$":"$.glueTables"
+                    }
+                  },
+                  "ResultPath": "$.output",
+                  "Next": "Run Glue Crawler"
+                },
+                "Run Glue Crawler": {
+                  "Type": "Task",
+                  "Resource": "${lCrawler}",
+                  "Comment": "Run Glue Crawler",
+                  "ResultPath": "$.statusCode",
+                  "End": true
+                }
+              }
+            }
+          - {
+              gController: !Ref rControllerGlueJob,
+              lCrawler: !GetAtt rGlueCrawlerLambdaFunction.Arn
+            }
+      RoleArn: !GetAtt rStatesExecutionRole.Arn
+
+  ######## GLUE #########
+  rControllerGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: pythonshell
+        PythonVersion: "3"
+        ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-controller.py"
+      DefaultArguments:
+        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--enable-metrics"                   : "true"
+        "--dynamodbSuggestionTableName"      : !Ref rDataQualitySuggestionsDynamoDBTable
+        "--dynamodbAnalysisTableName"        : !Ref rDataQualityAnalysisDynamoDBTable
+        "--glueSuggestionVerificationJob"    : !Ref rSuggestionVerificationRunnerGlueJob
+        "--glueVerificationJob"              : !Ref rVerificationRunnerGlueJob
+        "--glueProfilerJob"                  : !Ref rProfilerRunnerGlueJob
+        "--glueDatabase"                     : "default"
+        "--glueTables"                       : "table1,table2"
+        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+      ExecutionProperty:
+        MaxConcurrentRuns: 10
+      GlueVersion: '1.0'
+      Timeout: 65
+      Name: data-quality-controller
+      Role: !GetAtt rGlueJobsIAMRole.Arn
+
+  rSuggestionVerificationRunnerGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-suggestion-analysis-verification-runner.scala"
+      DefaultArguments:
+        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--job-language"                     : "scala"
+        "--class"                            : "GlueApp"
+        "--enable-continuous-cloudwatch-log" : "true"
+        "--enable-continuous-log-filter"     : "true"
+        "--enable-metrics"                   : "true"
+        "--enable-glue-datacatalog"          : ""
+        "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
+        "--dynamodbSuggestionTableName"      : !Ref rDataQualitySuggestionsDynamoDBTable
+        "--dynamodbAnalysisTableName"        : !Ref rDataQualityAnalysisDynamoDBTable
+        "--glueDatabase"                     : "default"
+        "--glueTables"                       : "table1,table2"
+        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+      ExecutionProperty:
+        MaxConcurrentRuns: 10
+      GlueVersion: "1.0"
+      MaxCapacity: 3
+      MaxRetries: 0
+      Timeout: 60
+      Name: data-quality-suggestion-analysis-verification-runner
+      Role: !GetAtt rGlueJobsIAMRole.Arn
+
+  rVerificationRunnerGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-analysis-verification-runner.scala"
+      DefaultArguments:
+        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--job-language"                     : "scala"
+        "--class"                            : "GlueApp"
+        "--enable-continuous-cloudwatch-log" : "true"
+        "--enable-continuous-log-filter"     : "true"
+        "--enable-metrics"                   : "true"
+        "--enable-glue-datacatalog"          : ""
+        "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
+        "--dynamodbSuggestionTableName"      : !Ref rDataQualitySuggestionsDynamoDBTable
+        "--dynamodbAnalysisTableName"        : !Ref rDataQualityAnalysisDynamoDBTable
+        "--glueDatabase"                     : "default"
+        "--glueTables"                       : "table1,table2"
+        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+      ExecutionProperty:
+        MaxConcurrentRuns: 10
+      MaxRetries: 0
+      Timeout: 60
+      GlueVersion: "1.0"
+      MaxCapacity: 3
+      Name: data-quality-analysis-verification-runner
+      Role: !GetAtt rGlueJobsIAMRole.Arn
+
+  rProfilerRunnerGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-profile-runner.scala"
+      DefaultArguments:
+        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--job-language"                     : "scala"
+        "--class"                            : "GlueApp"
+        "--enable-continuous-cloudwatch-log" : "true"
+        "--enable-continuous-log-filter"     : "true"
+        "--enable-metrics"                   : "true"
+        "--enable-glue-datacatalog"          : ""
+        "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
+        "--glueDatabase"                     : "default"
+        "--glueTables"                       : "table1,table2"
+        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+      ExecutionProperty:
+        MaxConcurrentRuns: 10
+      MaxRetries: 0
+      Timeout: 60
+      GlueVersion: "1.0"
+      MaxCapacity: 3
+      Name: data-quality-profile-runner
+      Role: !GetAtt rGlueJobsIAMRole.Arn
+
+  rGlueDataCatalog:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Description: Data Quality Catalog
+        Name: data_quality_db
+
+  rGlueCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role: !GetAtt rGlueJobsIAMRole.Arn
+      DatabaseName: !Ref rGlueDataCatalog
+      Name: data-quality-crawler
+      Targets:
+        S3Targets:
+          - Path: !Sub s3://${rDataQualityBucket}
