@@ -2,6 +2,7 @@
 nflag=false
 pflag=false
 rflag=false
+eflag=false
 
 DIRNAME=$(pwd)
 
@@ -10,14 +11,16 @@ usage () { echo "
     -n -- Name of the CloudFormation stack
     -p -- Name of the AWS profile to use
     -r -- AWS Region to use
+    -e -- Name of the environment
 "; }
-options=':n:p:r:h'
+options=':n:p:r:e:h'
 while getopts $options option
 do
     case "$option" in
         n  ) nflag=true; STACK_NAME=$OPTARG;;
         p  ) pflag=true; PROFILE=$OPTARG;;
         r  ) rflag=true; REGION=$OPTARG;;
+        e  ) eflag=true; ENV=$OPTARG;;
         h  ) usage; exit;;
         \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
         :  ) echo "Missing option argument for -$OPTARG" >&2; exit 1;;
@@ -38,6 +41,11 @@ if ! $rflag
 then
     echo "-r not specified, using default region..." >&2
     REGION=$(aws configure get region --profile $PROFILE)
+fi
+if ! $eflag
+then
+    echo "-e not specified, using dev..." >&2
+    ENV="dev"
 fi
 
 ACCOUNT=$(aws sts get-caller-identity --query 'Account' --output text --profile $PROFILE)
@@ -71,12 +79,37 @@ if ! aws cloudformation describe-stacks --profile $PROFILE  --region $REGION --s
     --region $REGION \
     --stack-name $STACK_NAME \
     --template-body file://$DIRNAME/output/packaged-template.yaml \
+    --parameters \
+      ParameterKey=pArtifactsBucket,ParameterValue=$S3_BUCKET \
+      ParameterKey=pEnv,ParameterValue=$ENV \
     --tags file://$DIRNAME/tags.json \
     --capabilities "CAPABILITY_NAMED_IAM" "CAPABILITY_AUTO_EXPAND"
 
   echo "Waiting for stack to be created ..."
   aws cloudformation wait stack-create-complete --profile $PROFILE --region $REGION \
     --stack-name $STACK_NAME
+
+  echo "Starting initial Amplify job ..."
+  APP_ID=$(sed -e 's/^"//' -e 's/"$//' <<<"$(aws ssm get-parameter --profile $PROFILE --region $REGION --name /DataQuality/Amplify/AppID --query "Parameter.Value")")
+  aws amplify start-job --profile $PROFILE --region $REGION --app-id $APP_ID --branch-name $ENV --job-type RELEASE
+
+  until [ $(aws amplify get-job --profile $PROFILE --region $REGION --app-id $APP_ID --branch-name $ENV --job-id 1 --query 'job.summary.status' --output text) = *"RUNNING"* ];
+  do
+    echo "Amplify console job is running......"
+    sleep 60s
+    if [ $(aws amplify get-job --profile $PROFILE --region $REGION --app-id $APP_ID --branch-name $ENV --job-id 1 --query 'job.summary.status' --output text) != "RUNNING" ]; then
+      echo "Amplify console job Finished"
+      status=$(aws amplify get-job --profile $PROFILE --region $REGION --app-id $APP_ID --branch-name $ENV --job-id 1 --query 'job.summary.status' --output text)
+      if [ "$status" == "SUCCEED" ]
+      then
+          echo "JOB $status"
+      else
+          echo "JOB $status"
+          exit 1;
+      fi  
+      break
+    fi
+  done
 else
   echo -e "Stack exists, attempting update ..."
 
@@ -86,6 +119,9 @@ else
     --region $REGION \
     --stack-name $STACK_NAME \
     --template-body file://$DIRNAME/output/packaged-template.yaml \
+    --parameters \
+      ParameterKey=pArtifactsBucket,ParameterValue=$S3_BUCKET \
+      ParameterKey=pEnv,ParameterValue=$ENV \
     --tags file://$DIRNAME/tags.json \
     --capabilities "CAPABILITY_NAMED_IAM" "CAPABILITY_AUTO_EXPAND" 2>&1)
   status=$?

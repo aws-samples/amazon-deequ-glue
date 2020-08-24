@@ -6,9 +6,12 @@ Description: Data Quality with Deequ on AWS Glue
 
 Parameters:
   pArtifactsBucket:
-    Description: The artifacts bucket for the solution
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /DataQuality/S3/ArtifactsBucket
+    Description: The name of the artifacts bucket
+    Type: String
+  pEnv:
+    Description: The environment name
+    Type: String
+    Default: dev
 
 Globals:
   Function:
@@ -16,6 +19,47 @@ Globals:
       Handler: lambda_function.lambda_handler
 
 Resources:
+  AmplifyDevBranch:
+    Type: AWS::Amplify::Branch
+    Properties:
+      BranchName: !Ref pEnv
+      AppId: !GetAtt AmplifyApp.AppId
+      EnableAutoBuild: yes
+
+  AmplifyApp:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: deequ-constraints
+      Repository: https://github.com/aws-samples/amazon-deequ-glue.git
+      Description: Deequ - Data Quality Constraints
+      IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
+      BuildSpec: |
+          version: 0.1
+          backend:
+            phases:
+              preBuild:
+                commands:
+                  - cd src/deequ-constraints
+                  - npm install -g @aws-amplify/cli
+              build:
+                commands:
+                  - amplifyPush --simple
+          frontend:
+            phases:
+              preBuild:
+                commands:
+                  - yarn install
+              build:
+                commands:
+                  - yarn run build
+            artifacts:
+              baseDirectory: src/deequ-constraints/build
+              files:
+                - '**/*'
+            cache:
+              paths: 
+                - src/deequ-constraints/node_modules/**/*
+
   ######## EVENTS #########
   rDataQualityTriggerEventRule:
     Type: AWS::Events::Rule
@@ -48,50 +92,67 @@ Resources:
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
 
-  ####### DYNAMODB #########
-  rDataQualitySuggestionsDynamoDBTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      KeySchema:
-        - AttributeName: suggestion_hash_key
-          KeyType: HASH
-      AttributeDefinitions:
-        - AttributeName: suggestion_hash_key
-          AttributeType: S
-        - AttributeName: table_hash_key
-          AttributeType: S
-      BillingMode: PAY_PER_REQUEST
-      GlobalSecondaryIndexes:
-        - IndexName: table-index
-          KeySchema:
-            - AttributeName: table_hash_key
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-      TableName: DataQualitySuggestions
-
-  rDataQualityAnalysisDynamoDBTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      KeySchema:
-        - AttributeName: analysis_hash_key
-          KeyType: HASH
-      AttributeDefinitions:
-        - AttributeName: analysis_hash_key
-          AttributeType: S
-        - AttributeName: table_hash_key
-          AttributeType: S
-      BillingMode: PAY_PER_REQUEST
-      GlobalSecondaryIndexes:
-        - IndexName: table-index
-          KeySchema:
-            - AttributeName: table_hash_key
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-      TableName: DataQualityAnalysis
-
   ######## IAM #########
+  AmplifyServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - amplify.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        -
+          PolicyName: "amplify-console-role"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - cloudformation:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - iam:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - logs:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - s3:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - dynamodb:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - cognito-identity:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codecommit:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - lambda:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - amplify:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - appsync:*
+
   rCommonIAMPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -281,8 +342,8 @@ Resources:
       DefaultArguments:
         "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
         "--enable-metrics"                   : "true"
-        "--dynamodbSuggestionTableName"      : !Ref rDataQualitySuggestionsDynamoDBTable
-        "--dynamodbAnalysisTableName"        : !Ref rDataQualityAnalysisDynamoDBTable
+        "--dynamodbSuggestionTableName"      : !Join ['-', ["DataQualitySuggestion", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
+        "--dynamodbAnalysisTableName"        : !Join ['-', ["DataQualityAnalyzer", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
         "--glueSuggestionVerificationJob"    : !Ref rSuggestionVerificationRunnerGlueJob
         "--glueVerificationJob"              : !Ref rVerificationRunnerGlueJob
         "--glueProfilerJob"                  : !Ref rProfilerRunnerGlueJob
@@ -311,8 +372,8 @@ Resources:
         "--enable-metrics"                   : "true"
         "--enable-glue-datacatalog"          : ""
         "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
-        "--dynamodbSuggestionTableName"      : !Ref rDataQualitySuggestionsDynamoDBTable
-        "--dynamodbAnalysisTableName"        : !Ref rDataQualityAnalysisDynamoDBTable
+        "--dynamodbSuggestionTableName"      : !Join ['-', ["DataQualitySuggestion", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
+        "--dynamodbAnalysisTableName"        : !Join ['-', ["DataQualityAnalyzer", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
         "--glueDatabase"                     : "default"
         "--glueTables"                       : "table1,table2"
         "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
@@ -340,8 +401,8 @@ Resources:
         "--enable-metrics"                   : "true"
         "--enable-glue-datacatalog"          : ""
         "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
-        "--dynamodbSuggestionTableName"      : !Ref rDataQualitySuggestionsDynamoDBTable
-        "--dynamodbAnalysisTableName"        : !Ref rDataQualityAnalysisDynamoDBTable
+        "--dynamodbSuggestionTableName"      : !Join ['-', ["DataQualitySuggestion", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
+        "--dynamodbAnalysisTableName"        : !Join ['-', ["DataQualityAnalyzer", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
         "--glueDatabase"                     : "default"
         "--glueTables"                       : "table1,table2"
         "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
@@ -398,3 +459,12 @@ Resources:
       Targets:
         S3Targets:
           - Path: !Sub s3://${rDataQualityBucket}
+
+  ######## SSM #########
+  AmplifyAppIdSSM:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/DataQuality/Amplify/AppID"
+      Type: "String"
+      Value:  !Select [ "1", !Split ["/", !Ref AmplifyApp]]
+      Description: "Data Quality Amplify App Id"

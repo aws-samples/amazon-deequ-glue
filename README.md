@@ -50,22 +50,22 @@ We assume you have a Glue database hosting one or more tables in the same region
 2. In ```DataQualitySuggestions``` DynamoDB table, notice how the ```enable``` field is set to ```N``` for all suggestions. You can review, edit, add and remove suggestions as you see fit. An entry in the table should look like this:
     ```
     {
-        "suggestion_hash_key": "##my_database##table1##my_column##1",
-        "constraint_code": ".isComplete(\"my_column\")",
+        "id": "##my_database##table1##my_column##1",
+        "constraintCode": ".isComplete(\"my_column\")",
         "constraint": "'my_column' is not null",
         "enable": "Y",
         "column": "my_column",
-        "table_hash_key": "my_database-table1"
+        "tableHashKey": "my_database-table1"
     }
     ```
     To enable a suggestion, simply set the ```enable``` flag to ```Y```
 3. Optionally, you can also provide data quality constraints in the ```DataQualityAnalysis``` DynamoDB table. These constraints are used by Deequ to calculate column-level statistics on the dataset (e.g. CountDistinct, DataType, Completeness…) called metrics (Refer to the Data Analysis section of this [blog](https://aws.amazon.com/blogs/big-data/test-data-quality-at-scale-with-deequ/) for more details). Here is an example of an analysis constraint entry:
     ```
     {
-        "analysis_hash_key": "##my_database##table1##my_column##1",
-        "analyzer_code": "Completeness(\"my_column\")",
+        "id": "##my_database##table1##my_column##1",
+        "analyzerCode": "Completeness(\"my_column\")",
         "enable": "Y",
-        "table_hash_key": "my_database-table1"
+        "tableHashKey": "my_database-table1"
     }
     ```
 4. Start a new execution of the step function with the same JSON as an input. This time the Glue jobs use the suggestions logged in both DynamoDB tables to perform the data quality checks. Once more, the results can be immediately queried in Athena

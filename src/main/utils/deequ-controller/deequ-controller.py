@@ -19,7 +19,7 @@ glue = boto3.client('glue')
 def get_suggestions(table, key_value):
     response = table.query(
         IndexName='table-index',
-        KeyConditionExpression=Key('table_hash_key').eq(key_value)
+        KeyConditionExpression=Key('tableHashKey').eq(key_value)
     )
     return response['Items']
 

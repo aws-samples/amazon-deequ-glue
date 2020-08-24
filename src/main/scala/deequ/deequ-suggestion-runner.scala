@@ -39,6 +39,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Properties
+import java.util.UUID.randomUUID
 
 /** *
  *
@@ -159,19 +161,15 @@ object GlueApp {
         suggestions.map { constraint =>
           (column, constraint.description, constraint.codeForConstraint)
         }
-    }.toSeq.toDS().withColumn("uniqueID", monotonicallyIncreasingId)
+    }.toSeq.toDS()
 
-    suggestionDataFrame.createOrReplaceTempView("suggestionDataFrame")
-
-    val suggestionDataFrameWithUniqeId = spark.sql("select row_number() over (order by uniqueID) as row_num, * from suggestionDataFrame")
-
-    suggestionDataFrameWithUniqeId
-      .withColumn("suggestion_hash_key", concat(lit("##"), lit(glueTable), lit("##"), $"_1", lit("##"), $"row_num"))
+    suggestionDataFrame
+      .withColumn("id", randomUUID().toString)      
       .withColumn("database", lit(glueDB))
       .withColumn("tablename", lit(glueTable))
       .withColumnRenamed("_1", "column")
       .withColumnRenamed("_2", "constraint")
-      .withColumnRenamed("_3", "constraint_code")
+      .withColumnRenamed("_3", "constraintCode")
       .withColumn("enable", lit("Y"))
 
   }
