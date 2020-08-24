@@ -1,0 +1,86 @@
+import React from "react";
+import styled from "@emotion/styled";
+import { FaRegTrashAlt } from "react-icons/fa";
+
+const Suggestion = styled("div")`
+  background-color: #ffffff;
+  border-radius: 4px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(116, 180, 155, 0.2);
+`;
+
+const LeftText = styled("p")`
+  color: #0f59bf;
+  margin-top: 0;
+  float: left;
+`;
+
+const RightText = styled("p")`
+  color: #0f59bf;
+  margin-top: 0;
+  float: right;
+`;
+
+const Icon = styled("button")`
+  padding: 8px 10px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  color: #0f59bf;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+  background-color: #ffffff;
+
+  &:hover {
+    color: #ffffff;
+    background-color: #0f59bf;
+  }
+`;
+
+const Divider = styled("div")`
+  height: 2px;
+  background-color: #f4f9f4;
+`;
+
+const SuggestionActions = styled("div")`
+  display: flex;
+  justify-content: stretch;
+  align-items: stretch;
+  height: 50px;
+  background-color: #0f59bf;
+`;
+
+const Info = styled.div`
+  padding: 5px;
+`;
+
+export default props => {
+  return (
+    <Suggestion>
+      <Info>
+        <LeftText><b>Constraint:</b> {props.constraint}</LeftText>
+        <RightText><b>Code:</b> {props.constraintCode}</RightText>
+      </Info>
+      <Info>
+        <LeftText><b>Column:</b> {props.column}</LeftText>
+        <RightText><b>Enabled:</b> {props.enable}</RightText>
+      </Info>
+      <Info>
+        <LeftText><b>Database:</b> {props.tableHashKey.split('-')[0]}</LeftText>
+        <RightText><b>Table:</b> {props.tableHashKey.split('-')[1]}</RightText>
+      </Info>
+      <Divider />
+      <SuggestionActions>
+        <Icon>
+          <FaRegTrashAlt onClick={props.onDelete} />
+        </Icon>
+      </SuggestionActions>
+    </Suggestion>
+  );
+};

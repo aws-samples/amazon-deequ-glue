@@ -1,0 +1,234 @@
+type DataQualitySuggestion {
+  id: ID!
+  constraint: String!
+  constraintCode: String!
+  column: String!
+  enable: String!
+  tableHashKey: String!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+type DataQualityAnalyzer {
+  id: ID!
+  analyzerCode: String!
+  column: String!
+  enable: String!
+  tableHashKey: String!
+  createdAt: AWSDateTime!
+  updatedAt: AWSDateTime!
+}
+
+enum ModelSortDirection {
+  ASC
+  DESC
+}
+
+type ModelDataQualitySuggestionConnection {
+  items: [DataQualitySuggestion]
+  nextToken: String
+}
+
+input ModelStringInput {
+  ne: String
+  eq: String
+  le: String
+  lt: String
+  ge: String
+  gt: String
+  contains: String
+  notContains: String
+  between: [String]
+  beginsWith: String
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+  size: ModelSizeInput
+}
+
+input ModelIDInput {
+  ne: ID
+  eq: ID
+  le: ID
+  lt: ID
+  ge: ID
+  gt: ID
+  contains: ID
+  notContains: ID
+  between: [ID]
+  beginsWith: ID
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+  size: ModelSizeInput
+}
+
+input ModelIntInput {
+  ne: Int
+  eq: Int
+  le: Int
+  lt: Int
+  ge: Int
+  gt: Int
+  between: [Int]
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+}
+
+input ModelFloatInput {
+  ne: Float
+  eq: Float
+  le: Float
+  lt: Float
+  ge: Float
+  gt: Float
+  between: [Float]
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+}
+
+input ModelBooleanInput {
+  ne: Boolean
+  eq: Boolean
+  attributeExists: Boolean
+  attributeType: ModelAttributeTypes
+}
+
+input ModelSizeInput {
+  ne: Int
+  eq: Int
+  le: Int
+  lt: Int
+  ge: Int
+  gt: Int
+  between: [Int]
+}
+
+input ModelDataQualitySuggestionFilterInput {
+  id: ModelIDInput
+  constraint: ModelStringInput
+  constraintCode: ModelStringInput
+  column: ModelStringInput
+  enable: ModelStringInput
+  tableHashKey: ModelStringInput
+  and: [ModelDataQualitySuggestionFilterInput]
+  or: [ModelDataQualitySuggestionFilterInput]
+  not: ModelDataQualitySuggestionFilterInput
+}
+
+enum ModelAttributeTypes {
+  binary
+  binarySet
+  bool
+  list
+  map
+  number
+  numberSet
+  string
+  stringSet
+  _null
+}
+
+type Query {
+  getDataQualitySuggestion(id: ID!): DataQualitySuggestion
+  listDataQualitySuggestions(filter: ModelDataQualitySuggestionFilterInput, limit: Int, nextToken: String): ModelDataQualitySuggestionConnection
+  getDataQualityAnalyzer(id: ID!): DataQualityAnalyzer
+  listDataQualityAnalyzers(filter: ModelDataQualityAnalyzerFilterInput, limit: Int, nextToken: String): ModelDataQualityAnalyzerConnection
+  suggestionByTable(tableHashKey: String, sortDirection: ModelSortDirection, filter: ModelDataQualitySuggestionFilterInput, limit: Int, nextToken: String): ModelDataQualitySuggestionConnection
+  analyzerByTable(tableHashKey: String, sortDirection: ModelSortDirection, filter: ModelDataQualityAnalyzerFilterInput, limit: Int, nextToken: String): ModelDataQualityAnalyzerConnection
+}
+
+input CreateDataQualitySuggestionInput {
+  id: ID
+  constraint: String!
+  constraintCode: String!
+  column: String!
+  enable: String!
+  tableHashKey: String!
+}
+
+input UpdateDataQualitySuggestionInput {
+  id: ID!
+  constraint: String
+  constraintCode: String
+  column: String
+  enable: String
+  tableHashKey: String
+}
+
+input DeleteDataQualitySuggestionInput {
+  id: ID
+}
+
+type Mutation {
+  createDataQualitySuggestion(input: CreateDataQualitySuggestionInput!, condition: ModelDataQualitySuggestionConditionInput): DataQualitySuggestion
+  updateDataQualitySuggestion(input: UpdateDataQualitySuggestionInput!, condition: ModelDataQualitySuggestionConditionInput): DataQualitySuggestion
+  deleteDataQualitySuggestion(input: DeleteDataQualitySuggestionInput!, condition: ModelDataQualitySuggestionConditionInput): DataQualitySuggestion
+  createDataQualityAnalyzer(input: CreateDataQualityAnalyzerInput!, condition: ModelDataQualityAnalyzerConditionInput): DataQualityAnalyzer
+  updateDataQualityAnalyzer(input: UpdateDataQualityAnalyzerInput!, condition: ModelDataQualityAnalyzerConditionInput): DataQualityAnalyzer
+  deleteDataQualityAnalyzer(input: DeleteDataQualityAnalyzerInput!, condition: ModelDataQualityAnalyzerConditionInput): DataQualityAnalyzer
+}
+
+input ModelDataQualitySuggestionConditionInput {
+  constraint: ModelStringInput
+  constraintCode: ModelStringInput
+  column: ModelStringInput
+  enable: ModelStringInput
+  tableHashKey: ModelStringInput
+  and: [ModelDataQualitySuggestionConditionInput]
+  or: [ModelDataQualitySuggestionConditionInput]
+  not: ModelDataQualitySuggestionConditionInput
+}
+
+type Subscription {
+  onCreateDataQualitySuggestion: DataQualitySuggestion @aws_subscribe(mutations: ["createDataQualitySuggestion"])
+  onUpdateDataQualitySuggestion: DataQualitySuggestion @aws_subscribe(mutations: ["updateDataQualitySuggestion"])
+  onDeleteDataQualitySuggestion: DataQualitySuggestion @aws_subscribe(mutations: ["deleteDataQualitySuggestion"])
+  onCreateDataQualityAnalyzer: DataQualityAnalyzer @aws_subscribe(mutations: ["createDataQualityAnalyzer"])
+  onUpdateDataQualityAnalyzer: DataQualityAnalyzer @aws_subscribe(mutations: ["updateDataQualityAnalyzer"])
+  onDeleteDataQualityAnalyzer: DataQualityAnalyzer @aws_subscribe(mutations: ["deleteDataQualityAnalyzer"])
+}
+
+type ModelDataQualityAnalyzerConnection {
+  items: [DataQualityAnalyzer]
+  nextToken: String
+}
+
+input ModelDataQualityAnalyzerFilterInput {
+  id: ModelIDInput
+  analyzerCode: ModelStringInput
+  column: ModelStringInput
+  enable: ModelStringInput
+  tableHashKey: ModelStringInput
+  and: [ModelDataQualityAnalyzerFilterInput]
+  or: [ModelDataQualityAnalyzerFilterInput]
+  not: ModelDataQualityAnalyzerFilterInput
+}
+
+input CreateDataQualityAnalyzerInput {
+  id: ID
+  analyzerCode: String!
+  column: String!
+  enable: String!
+  tableHashKey: String!
+}
+
+input UpdateDataQualityAnalyzerInput {
+  id: ID!
+  analyzerCode: String
+  column: String
+  enable: String
+  tableHashKey: String
+}
+
+input DeleteDataQualityAnalyzerInput {
+  id: ID
+}
+
+input ModelDataQualityAnalyzerConditionInput {
+  analyzerCode: ModelStringInput
+  column: ModelStringInput
+  enable: ModelStringInput
+  tableHashKey: ModelStringInput
+  and: [ModelDataQualityAnalyzerConditionInput]
+  or: [ModelDataQualityAnalyzerConditionInput]
+  not: ModelDataQualityAnalyzerConditionInput
+}

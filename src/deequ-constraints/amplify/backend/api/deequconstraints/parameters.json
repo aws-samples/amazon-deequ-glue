@@ -1,0 +1,11 @@
+{
+    "AppSyncApiName": "deequconstraints",
+    "DynamoDBBillingMode": "PAY_PER_REQUEST",
+    "DynamoDBEnableServerSideEncryption": "false",
+    "AuthCognitoUserPoolId": {
+        "Fn::GetAtt": [
+            "authdeequconstraints752dc94a",
+            "Outputs.UserPoolId"
+        ]
+    }
+}
