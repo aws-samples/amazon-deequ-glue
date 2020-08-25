@@ -139,6 +139,10 @@ Resources:
               - Resource: "*"
                 Effect: Allow
                 Action:
+                  - cognito-idp:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
                   - codecommit:*
               - Resource: "*"
                 Effect: Allow
