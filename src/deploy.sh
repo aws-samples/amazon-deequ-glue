@@ -73,6 +73,20 @@ aws cloudformation package --profile $PROFILE --region $REGION --template-file $
 
 echo "Checking if stack exists ..."
 if ! aws cloudformation describe-stacks --profile $PROFILE  --region $REGION --stack-name $STACK_NAME; then
+  echo "Creating CodeCommit Repository"
+  aws codecommit create-repository --region $REGION --profile $PROFILE --repository-name amazon-deequ-glue
+  git config --global credential.helper '!aws --profile '$PROFILE' codecommit credential-helper $@'
+  git config --global credential.UseHttpPath true
+  cd ../
+  rm -rf .git
+  git init
+  git add .
+  git commit -m "Initial Commit"
+  git remote add origin https://git-codecommit.$REGION.amazonaws.com/v1/repos/amazon-deequ-glue
+  git checkout -b $ENV
+  git push --set-upstream origin $ENV
+  cd $DIRNAME
+
   echo -e "Stack does not exist, creating ..."
   aws cloudformation create-stack \
     --profile $PROFILE \

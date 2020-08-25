@@ -30,7 +30,7 @@ Resources:
     Type: AWS::Amplify::App
     Properties:
       Name: deequ-constraints
-      Repository: https://github.com/aws-samples/amazon-deequ-glue.git
+      Repository: !Sub https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/amazon-deequ-glue
       Description: Deequ - Data Quality Constraints
       IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
       BuildSpec: |
