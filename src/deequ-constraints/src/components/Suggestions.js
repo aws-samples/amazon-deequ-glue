@@ -61,7 +61,6 @@ export default () => {
   useEffect(() => {
     const fetchDataQualitySuggestions = async () => {
       const result = await API.graphql(graphqlOperation(listDataQualitySuggestions));
-      console.log(result)
       setDataQualitySuggestions(
         result.data.listDataQualitySuggestions.items.sort((a, b) => {
           if (a.updatedAt > b.updatedAt) return -1;
@@ -81,8 +80,7 @@ export default () => {
     formData['tableHashKey'] = formData['database'].concat('-', formData['table']);
     const { ['database']: db, ['table']: tb, ...newInput } = formData;
     const apiData = await API.graphql({ query: createDataQualitySuggestionMutation, variables: { input: newInput } });
-    formData['id'] = apiData.data.createDataQualitySuggestion.id;
-    setDataQualitySuggestions([ ...dataQualitySuggestions, formData ]);
+    setDataQualitySuggestions([ ...dataQualitySuggestions, apiData.data.createDataQualitySuggestion ]);
     setFormData(initialFormState);
   }
 
@@ -155,12 +153,15 @@ export default () => {
         <Suggestion
           key={dataQualitySuggestion.id}
           {...dataQualitySuggestion}
-          onSaveChanges={async values => {
+          toggleEnable={async () => {
+            var enable = 'Y';
+            if (dataQualitySuggestion.enable === 'Y') enable='N';
+            const changedSuggestion = {...dataQualitySuggestion, 'enable': enable};
+            const {['createdAt']: c, ['updatedAt']: u, ...inputData} = changedSuggestion;
             const result = await API.graphql(
               graphqlOperation(updateDataQualitySuggestion, {
                 input: {
-                  ...dataQualitySuggestion,
-                  ...values
+                  ...inputData
                 }
               })
             );

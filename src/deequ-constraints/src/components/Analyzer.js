@@ -1,6 +1,6 @@
 import React from "react";
 import styled from "@emotion/styled";
-import { FaRegTrashAlt } from "react-icons/fa";
+import { FaRegTrashAlt, FaRegCheckSquare } from "react-icons/fa";
 
 const Analyzer = styled("div")`
   background-color: #ffffff;
@@ -76,6 +76,9 @@ export default props => {
       </Info>
       <Divider />
       <AnalyzerActions>
+        <Icon>
+            <FaRegCheckSquare onClick={props.toggleEnable} />
+        </Icon>
         <Icon>
           <FaRegTrashAlt onClick={props.onDelete} />
         </Icon>

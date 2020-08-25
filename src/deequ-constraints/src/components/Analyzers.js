@@ -61,7 +61,6 @@ export default () => {
   useEffect(() => {
     const fetchDataQualityAnalyzers = async () => {
       const result = await API.graphql(graphqlOperation(listDataQualityAnalyzers));
-      console.log(result)
       setDataQualityAnalyzers(
         result.data.listDataQualityAnalyzers.items.sort((a, b) => {
           if (a.updatedAt > b.updatedAt) return -1;
@@ -81,8 +80,7 @@ export default () => {
     formData['tableHashKey'] = formData['database'].concat('-', formData['table']);
     const { ['database']: db, ['table']: tb, ...newInput } = formData;
     const apiData = await API.graphql({ query: createDataQualityAnalyzerMutation, variables: { input: newInput } });
-    formData['id'] = apiData.data.createDataQualityAnalyzer.id;
-    setDataQualityAnalyzers([ ...dataQualityAnalyzers, formData ]);
+    setDataQualityAnalyzers([ ...dataQualityAnalyzers, apiData.data.createDataQualityAnalyzer ]);
     setFormData(initialFormState);
   }
 
@@ -150,12 +148,15 @@ export default () => {
         <Analyzer
           key={dataQualityAnalyzer.id}
           {...dataQualityAnalyzer}
-          onSaveChanges={async values => {
+          toggleEnable={async () => {
+            var enable = 'Y';
+            if (dataQualityAnalyzer.enable === 'Y') enable='N';
+            const changedAnalyzer = {...dataQualityAnalyzer, 'enable': enable};
+            const {['createdAt']: c, ['updatedAt']: u, ...inputData} = changedAnalyzer;
             const result = await API.graphql(
               graphqlOperation(updateDataQualityAnalyzer, {
                 input: {
-                  ...dataQualityAnalyzer,
-                  ...values
+                  ...inputData
                 }
               })
             );
