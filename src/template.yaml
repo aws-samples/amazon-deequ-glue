@@ -115,53 +115,140 @@ Resources:
               - Resource: "*"
                 Effect: Allow
                 Action:
-                  - cloudformation:*
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:CreateStackSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResource
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:DescribeStackSet
+                  - cloudformation:DescribeStackSetOperation
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:UpdateStack
+                  - cloudformation:UpdateStackSet
+                  - cloudformation:ValidateTemplate
               - Resource: "*"
                 Effect: Allow
                 Action:
-                  - iam:*
+                  - iam:AttachRolePolicy
+                  - iam:CreatePolicy
+                  - iam:CreatePolicyVersion
+                  - iam:CreateRole
+                  - iam:CreateServiceLinkedRole
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:ListPolicies
+                  - iam:ListPolicyVersions
+                  - iam:ListRolePolicies
+                  - iam:ListRoles
+                  - iam:PassRole
+                  - iam:PutGroupPolicy
+                  - iam:PutRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:UpdateRole
+                  - iam:UpdateRoleDescription
               - Resource: "*"
                 Effect: Allow
                 Action:
-                  - logs:*
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
               - Resource: "*"
                 Effect: Allow
                 Action:
-                  - s3:*
+                  - s3:CreateBucket
+                  - s3:GetBucketAcl
+                  - s3:GetBucketLocation
+                  - s3:GetBucketPolicy
+                  - s3:GetEncryptionConfiguration
+                  - s3:ListBucket
+                  - s3:PutBucketAcl
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketVersioning
+                  - s3:PutBucketWebsite
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutObjectAcl
               - Resource: "*"
                 Effect: Allow
                 Action:
-                  - dynamodb:*
+                  - dynamodb:CreateTable
+                  - dynamodb:DescribeTable
+                  - dynamodb:UpdateTable
               - Resource: "*"
                 Effect: Allow
                 Action:
-                  - cognito-identity:*
+                  - cognito-identity:CreateIdentityPool
+                  - cognito-identity:DescribeIdentity
+                  - cognito-identity:DescribeIdentityPool
+                  - cognito-identity:SetIdentityPoolRoles
+                  - cognito-identity:UpdateIdentityPool
+                  - cognito-idp:CreateGroup
+                  - cognito-idp:CreateUserPool
+                  - cognito-idp:CreateUserPoolClient
+                  - cognito-idp:DescribeUserPool
+                  - cognito-idp:UpdateUserPool
+                  - cognito-idp:UpdateUserPoolClient
               - Resource: "*"
                 Effect: Allow
                 Action:
-                  - cognito-idp:*
-              - Resource: "*"
+                  - codecommit:GitPull
+                  - codecommit:GetRepository
+                  - codecommit:GetRepositoryTriggers
+                  - codecommit:PutRepositoryTriggers
+              - Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/DataQuality/${pEnv}/AppSync/GraphQLApi"
                 Effect: Allow
                 Action:
-                  - codecommit:*
-              - Resource: "*"
-                Effect: Allow
-                Action:
-                  - lambda:*
-              - Resource: "*"
-                Effect: Allow
-                Action:
-                  - amplify:*
-              - Resource: "*"
-                Effect: Allow
-                Action:
-                  - appsync:*
-              - Resource: "*"
-                Effect: Allow
-                Action:
-                  - ssm:PutParameter
                   - ssm:AddTagsToResource
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                  - ssm:DeleteParameter
+                  - ssm:DeleteParameters
                   - ssm:ListTagsForResource
+                  - ssm:PutParameter
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - lambda:CreateFunction
+                  - lambda:GetFunction
+                  - lambda:GetFunctionConfiguration
+                  - lambda:ListEventSourceMappings
+                  - lambda:ListFunctions
+                  - lambda:ListTags
+                  - lambda:TagResource
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - amplify:CreateBackendEnvironment
+                  - amplify:GetApp
+                  - amplify:GetBackendEnvironment
+                  - amplify:ListApps
+                  - amplify:TagResource
+                  - amplify:UntagResource
+                  - amplify:UpdateApp
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - appsync:CreateDataSource
+                  - appsync:CreateGraphqlApi
+                  - appsync:CreateResolver
+                  - appsync:GetGraphqlApi
+                  - appsync:GetSchemaCreationStatus
+                  - appsync:StartSchemaCreation
+                  - appsync:UpdateDataSource
+                  - appsync:UpdateGraphqlApi
+                  - appsync:UpdateResolver
 
   rCommonIAMPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -222,7 +309,7 @@ Resources:
                 - ssm:GetParameter
                 - ssm:GetParameters
               Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/DataQuality/{pEnv}/AppSync/GraphQLApi"
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/DataQuality/${pEnv}/AppSync/GraphQLApi"
 
   rGlueCrawlerRole:
     Type: AWS::IAM::Role

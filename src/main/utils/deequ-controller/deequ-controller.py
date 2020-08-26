@@ -51,10 +51,10 @@ args = getResolvedOptions(sys.argv, [
     'glueTables'])
 
 env = args['env']
-appsync_api_id = ssm.get_parameter(Name=f"/DataQuality/${env}/AppSync/GraphQLApi")['Parameter']['Value']
+appsync_api_id = ssm.get_parameter(Name=f"/DataQuality/{env}/AppSync/GraphQLApi")['Parameter']['Value']
 
-suggestion_dynamodb_table_name = f"DataQualitySuggestions-{appsync_api_id}-{env}"
-analysis_dynamodb_table_name = f"DataQualityAnalyzers-{appsync_api_id}-{env}"
+suggestion_dynamodb_table_name = f"DataQualitySuggestion-{appsync_api_id}-{env}"
+analysis_dynamodb_table_name = f"DataQualityAnalyzer-{appsync_api_id}-{env}"
 suggestions_job_name = args['glueSuggestionVerificationJob']
 verification_job_name = args['glueVerificationJob']
 profile_job_name = args['glueProfilerJob']
