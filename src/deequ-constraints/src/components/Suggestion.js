@@ -3,7 +3,7 @@ import styled from "@emotion/styled";
 import { FaRegTrashAlt, FaRegCheckSquare } from "react-icons/fa";
 
 const Suggestion = styled("div")`
-  background-color: #ffffff;
+  background-color: #FF9900;
   border-radius: 4px;
   margin-bottom: 24px;
   display: flex;
@@ -15,13 +15,13 @@ const Suggestion = styled("div")`
 `;
 
 const LeftText = styled("p")`
-  color: #0f59bf;
+  color: #232f3e;
   margin-top: 0;
   float: left;
 `;
 
 const RightText = styled("p")`
-  color: #0f59bf;
+  color: #232f3e;
   margin-top: 0;
   float: right;
 `;
@@ -31,15 +31,15 @@ const Icon = styled("button")`
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  color: #0f59bf;
+  color: #232f3e;
   border: none;
   cursor: pointer;
   flex: 1;
-  background-color: #ffffff;
+  background-color: #FF9900;
 
   &:hover {
-    color: #ffffff;
-    background-color: #0f59bf;
+    color: #FF9900;
+    background-color: #232f3e;
   }
 `;
 
@@ -53,7 +53,7 @@ const SuggestionActions = styled("div")`
   justify-content: stretch;
   align-items: stretch;
   height: 50px;
-  background-color: #0f59bf;
+  background-color: #232f3e;
 `;
 
 const Info = styled.div`

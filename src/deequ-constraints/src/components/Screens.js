@@ -8,7 +8,7 @@ import Suggestions from "./Suggestions";
 import Analyzers from "./Analyzers";
 
 const Header = styled("div")`
-  background-color: #ffffff;
+  background-color: #232f3e;
   padding-left: 16px;
   padding-right: 16px;
   display: flex;
@@ -25,12 +25,12 @@ const Title = styled("h1")`
   margin-top: 0;
   margin-bottom: 0;
   text-transform: uppercase;
-  color: #0f59bf;
+  color: #FF9900;
   font-size: 24px;
 `;
 
 const SignOutButton = styled(Button)`
-  background-color: #0f59bf;
+  background-color: #FF9900;
   cursor: pointer;
 `;
 
@@ -53,8 +53,8 @@ const StyledTabList = styled(TabList)`
   box-shadow: 0 6px 6px rgba(116, 180, 155, 0.4);
 
   & > [data-selected] {
-    border-bottom-color: #0f59bf;
-    color: #0f59bf;
+    border-bottom-color: #FF9900;
+    color: #FF9900;
   }
 `;
 
@@ -78,11 +78,11 @@ const StyledTab = styled(Tab)`
   text-transform: uppercase;
   flex: 1;
   padding: 16px;
-  color: #0f59bf;
-  background-color: #ffffff;
+  color: #FF9900;
+  background-color: #232f3e;
   font-size: 16px;
   border: none;
-  border-bottom: 3px solid #ffffff;
+  border-bottom: 3px solid #232f3e;
 `;
 
 export default () => {

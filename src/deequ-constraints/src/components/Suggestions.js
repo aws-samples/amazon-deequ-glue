@@ -16,30 +16,30 @@ const Container = styled("div")`
 const Title = styled("h1")`
   margin-top: 0;
   margin-bottom: 0;
-  color: #0f59bf;
+  color: #FF9900;
   font-size: 24px;
 `;
 
 const Label = styled("label")`
-  color: #0f59bf;
+  color: #FF9900;
   display: inline-block;
   width: 140px;
   text-align: left;
 `;
 
 const RadioLabel = styled("label")`
-  color: #0f59bf;
+  color: #FF9900;
   padding-left: 5px;
   padding-right: 2px;
 `;
 
 const Divider = styled("div")`
   height: 20px;
-  background-color: #f9f4f8;
+  background-color: #232f3e;
 `;
 
 const SubmitButton = styled(Button)`
-  background-color: #0f59bf;
+  background-color: #FF9900;
   cursor: pointer;
 `;
 
@@ -108,7 +108,7 @@ export default () => {
 
   return (
     <Container> 
-      <Title>Filter:</Title> <input value={filteredName} onChange={handleFilteredChange}/>
+      <Title>Filter:</Title> <input placeholder="E.g. mydb-table1 OR my_column" size="50" value={filteredName} onChange={handleFilteredChange}/>
       <Divider />
       <Title>Add a new suggestion:</Title>
           <div> <Label>Column:</Label> <input

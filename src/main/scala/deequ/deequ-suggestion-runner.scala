@@ -36,6 +36,7 @@ import org.apache.hadoop.io.LongWritable
 import com.amazon.deequ.suggestions.{ConstraintSuggestionRunner, Rules}
 import com.amazon.deequ.analyzers._
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -163,15 +164,19 @@ object GlueApp {
         }
     }.toSeq.toDS()
 
+    val uuid = udf(() => java.util.UUID.randomUUID().toString)
+    val now = LocalDateTime.now().toString()+"Z"
     suggestionDataFrame
-      .withColumn("id", randomUUID().toString)      
+      .withColumn("id", uuid())      
       .withColumn("database", lit(glueDB))
       .withColumn("tablename", lit(glueTable))
       .withColumnRenamed("_1", "column")
       .withColumnRenamed("_2", "constraint")
       .withColumnRenamed("_3", "constraintCode")
-      .withColumn("enable", lit("Y"))
-
+      .withColumn("enable", lit("N"))
+      .withColumn("__typename", lit("DataQualitySuggestion"))
+      .withColumn("createdAt", lit(now))
+      .withColumn("updatedAt", lit(now))
   }
 
   /***

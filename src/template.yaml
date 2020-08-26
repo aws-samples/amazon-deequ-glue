@@ -156,6 +156,12 @@ Resources:
                 Effect: Allow
                 Action:
                   - appsync:*
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                  - ssm:AddTagsToResource
+                  - ssm:ListTagsForResource
 
   rCommonIAMPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -206,6 +212,17 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonS3FullAccess
         - !Ref rCommonIAMPolicy
+      Policies:
+        - PolicyName: data-quality-jobs
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/DataQuality/{pEnv}/AppSync/GraphQLApi"
 
   rGlueCrawlerRole:
     Type: AWS::IAM::Role
@@ -346,8 +363,7 @@ Resources:
       DefaultArguments:
         "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
         "--enable-metrics"                   : "true"
-        "--dynamodbSuggestionTableName"      : !Join ['-', ["DataQualitySuggestion", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
-        "--dynamodbAnalysisTableName"        : !Join ['-', ["DataQualityAnalyzer", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
+        "--env"                              : !Ref pEnv
         "--glueSuggestionVerificationJob"    : !Ref rSuggestionVerificationRunnerGlueJob
         "--glueVerificationJob"              : !Ref rVerificationRunnerGlueJob
         "--glueProfilerJob"                  : !Ref rProfilerRunnerGlueJob
@@ -356,7 +372,7 @@ Resources:
         "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
       ExecutionProperty:
         MaxConcurrentRuns: 10
-      GlueVersion: '1.0'
+      GlueVersion: "1.0"
       Timeout: 65
       Name: data-quality-controller
       Role: !GetAtt rGlueJobsIAMRole.Arn
@@ -376,14 +392,14 @@ Resources:
         "--enable-metrics"                   : "true"
         "--enable-glue-datacatalog"          : ""
         "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
-        "--dynamodbSuggestionTableName"      : !Join ['-', ["DataQualitySuggestion", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
-        "--dynamodbAnalysisTableName"        : !Join ['-', ["DataQualityAnalyzer", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
+        "--dynamodbSuggestionTableName"      : "default"
+        "--dynamodbAnalysisTableName"        : "default"
         "--glueDatabase"                     : "default"
         "--glueTables"                       : "table1,table2"
         "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
       ExecutionProperty:
         MaxConcurrentRuns: 10
-      GlueVersion: "1.0"
+      GlueVersion: "2.0"
       MaxCapacity: 3
       MaxRetries: 0
       Timeout: 60
@@ -405,8 +421,8 @@ Resources:
         "--enable-metrics"                   : "true"
         "--enable-glue-datacatalog"          : ""
         "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
-        "--dynamodbSuggestionTableName"      : !Join ['-', ["DataQualitySuggestion", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
-        "--dynamodbAnalysisTableName"        : !Join ['-', ["DataQualityAnalyzer", !GetAtt AmplifyApp.AppId, !Ref pEnv]]
+        "--dynamodbSuggestionTableName"      : "default"
+        "--dynamodbAnalysisTableName"        : "default"
         "--glueDatabase"                     : "default"
         "--glueTables"                       : "table1,table2"
         "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
@@ -414,7 +430,7 @@ Resources:
         MaxConcurrentRuns: 10
       MaxRetries: 0
       Timeout: 60
-      GlueVersion: "1.0"
+      GlueVersion: "2.0"
       MaxCapacity: 3
       Name: data-quality-analysis-verification-runner
       Role: !GetAtt rGlueJobsIAMRole.Arn
@@ -441,7 +457,7 @@ Resources:
         MaxConcurrentRuns: 10
       MaxRetries: 0
       Timeout: 60
-      GlueVersion: "1.0"
+      GlueVersion: "2.0"
       MaxCapacity: 3
       Name: data-quality-profile-runner
       Role: !GetAtt rGlueJobsIAMRole.Arn

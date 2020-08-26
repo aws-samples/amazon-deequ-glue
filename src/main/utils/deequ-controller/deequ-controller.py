@@ -14,6 +14,7 @@ logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource('dynamodb')
 glue = boto3.client('glue')
+ssm = boto3.client('ssm')
 
 
 def get_suggestions(table, key_value):
@@ -42,16 +43,18 @@ def testGlueJob(jobId, count, sec, jobName):
 
 # Required Parameters
 args = getResolvedOptions(sys.argv, [
-    'dynamodbSuggestionTableName',
-    'dynamodbAnalysisTableName',
+    'env',
     'glueSuggestionVerificationJob',
     'glueVerificationJob',
     'glueProfilerJob',
     'glueDatabase',
     'glueTables'])
 
-suggestion_dynamodb_table_name = args['dynamodbSuggestionTableName']
-analysis_dynamodb_table_name = args['dynamodbAnalysisTableName']
+env = args['env']
+appsync_api_id = ssm.get_parameter(Name=f"/DataQuality/${env}/AppSync/GraphQLApi")['Parameter']['Value']
+
+suggestion_dynamodb_table_name = f"DataQualitySuggestions-{appsync_api_id}-{env}"
+analysis_dynamodb_table_name = f"DataQualityAnalyzers-{appsync_api_id}-{env}"
 suggestions_job_name = args['glueSuggestionVerificationJob']
 verification_job_name = args['glueVerificationJob']
 profile_job_name = args['glueProfilerJob']
@@ -75,6 +78,8 @@ if suggestions_tables:
     suggestions_response = glue.start_job_run(
         JobName=suggestions_job_name,
         Arguments={
+            '--dynamodbSuggestionTableName': suggestion_dynamodb_table_name,
+            '--dynamodbAnalysisTableName': analysis_dynamodb_table_name,
             '--glueDatabase': glue_database,
             '--glueTables': ','.join(suggestions_tables)
         }
@@ -83,6 +88,8 @@ if verification_tables:
     verification_response = glue.start_job_run(
         JobName=verification_job_name,
         Arguments={
+            '--dynamodbSuggestionTableName': suggestion_dynamodb_table_name,
+            '--dynamodbAnalysisTableName': analysis_dynamodb_table_name,
             '--glueDatabase': glue_database,
             '--glueTables': ','.join(verification_tables)
         }

@@ -46,6 +46,7 @@ import com.amazon.deequ.analyzers.Analyzer
 import com.amazon.deequ.metrics.Metric
 
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -105,13 +106,18 @@ object GlueApp {
           }
       }.toSeq.toDS()
 
+      val uuid = udf(() => java.util.UUID.randomUUID().toString)
+      val now = LocalDateTime.now().toString()+"Z"
       val suggestionDataFrameRenamed = suggestionDataFrame
-        .withColumn("id", randomUUID().toString)
+        .withColumn("id", uuid())
         .withColumnRenamed("_1", "column")
         .withColumnRenamed("_2", "constraint")
         .withColumnRenamed("_3", "constraintCode")
         .withColumn("enable", lit("N"))
         .withColumn("tableHashKey", concat(lit(dbName), lit("-"), lit(tabName)))
+        .withColumn("__typename", lit("DataQualitySuggestion"))
+        .withColumn("createdAt", lit(now))
+        .withColumn("updatedAt", lit(now))
 
       writeDStoS3(suggestionDataFrameRenamed, args("targetBucketName"), "constraint-suggestion-results", dbName, tabName, getYear, getMonth, getDay, getTimestamp)
 
