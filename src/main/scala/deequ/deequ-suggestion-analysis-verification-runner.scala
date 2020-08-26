@@ -46,10 +46,12 @@ import com.amazon.deequ.analyzers.Analyzer
 import com.amazon.deequ.metrics.Metric
 
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
-
+import java.util.Properties
+import java.util.UUID.randomUUID
 
 object GlueApp {
   def main(sysArgs: Array[String]) {
@@ -102,20 +104,20 @@ object GlueApp {
           suggestions.map { constraint =>
             (column, constraint.description, constraint.codeForConstraint)
           }
-      }.toSeq.toDS().withColumn("uniqueID", monotonicallyIncreasingId)
+      }.toSeq.toDS()
 
-      suggestionDataFrame.createOrReplaceTempView("suggestionDataFrame")
-
-      val suggestionDataFrame_UniqId = spark.sql("select row_number() over (order by uniqueID) as row_num, * from suggestionDataFrame")
-
-      val suggestionDataFrameRenamed = suggestionDataFrame_UniqId
-        .withColumn("suggestion_hash_key", concat(lit("##"), lit(dbName), lit("##"), lit(tabName), lit("##"), $"_1", lit("##"), $"row_num"))
+      val uuid = udf(() => java.util.UUID.randomUUID().toString)
+      val now = LocalDateTime.now().toString()+"Z"
+      val suggestionDataFrameRenamed = suggestionDataFrame
+        .withColumn("id", uuid())
         .withColumnRenamed("_1", "column")
         .withColumnRenamed("_2", "constraint")
-        .withColumnRenamed("_3", "constraint_code")
+        .withColumnRenamed("_3", "constraintCode")
         .withColumn("enable", lit("N"))
-        .withColumn("table_hash_key", concat(lit(dbName), lit("-"), lit(tabName)))
-        .drop("uniqueID").drop("row_num")
+        .withColumn("tableHashKey", concat(lit(dbName), lit("-"), lit(tabName)))
+        .withColumn("__typename", lit("DataQualitySuggestion"))
+        .withColumn("createdAt", lit(now))
+        .withColumn("updatedAt", lit(now))
 
       writeDStoS3(suggestionDataFrameRenamed, args("targetBucketName"), "constraint-suggestion-results", dbName, tabName, getYear, getMonth, getDay, getTimestamp)
 

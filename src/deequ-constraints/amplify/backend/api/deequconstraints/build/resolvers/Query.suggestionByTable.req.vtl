@@ -1,0 +1,31 @@
+## [Start] Set query expression for @key **
+#set( $modelQueryExpression = {} )
+#if( !$util.isNull($ctx.args.tableHashKey) )
+  #set( $modelQueryExpression.expression = "#tableHashKey = :tableHashKey" )
+  #set( $modelQueryExpression.expressionNames = {
+  "#tableHashKey": "tableHashKey"
+} )
+  #set( $modelQueryExpression.expressionValues = {
+  ":tableHashKey": {
+      "S": "$ctx.args.tableHashKey"
+  }
+} )
+#end
+## [End] Set query expression for @key **
+#set( $limit = $util.defaultIfNull($context.args.limit, 100) )
+#set( $QueryRequest = {
+  "version": "2017-02-28",
+  "operation": "Query",
+  "limit": $limit,
+  "query": $modelQueryExpression,
+  "index": "table-index"
+} )
+#if( !$util.isNull($ctx.args.sortDirection)
+                    && $ctx.args.sortDirection == "DESC" )
+  #set( $QueryRequest.scanIndexForward = false )
+#else
+  #set( $QueryRequest.scanIndexForward = true )
+#end
+#if( $context.args.nextToken ) #set( $QueryRequest.nextToken = $context.args.nextToken ) #end
+#if( $context.args.filter ) #set( $QueryRequest.filter = $util.parseJson("$util.transform.toDynamoDBFilterExpression($ctx.args.filter)") ) #end
+$util.toJson($QueryRequest)

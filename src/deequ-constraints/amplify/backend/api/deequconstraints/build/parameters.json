@@ -1,0 +1,14 @@
+{
+    "CreateAPIKey": 0,
+    "AppSyncApiName": "deequconstraints",
+    "DynamoDBBillingMode": "PAY_PER_REQUEST",
+    "DynamoDBEnableServerSideEncryption": "false",
+    "AuthCognitoUserPoolId": {
+        "Fn::GetAtt": [
+            "authdeequconstraints752dc94a",
+            "Outputs.UserPoolId"
+        ]
+    },
+    "S3DeploymentBucket": "amplify-deequconstraints-master-154940-deployment",
+    "S3DeploymentRootKey": "amplify-appsync-files/3dce013a959b7bdd661d3848dbfcd61478c923dd"
+}

@@ -23,6 +23,7 @@ import java.util.HashMap
 
 import org.slf4j.LoggerFactory
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -171,7 +172,7 @@ object GlueApp {
     val index: Index = tableSuggestions.getIndex("table-index")
 
     val querySpec: QuerySpec = new QuerySpec()
-    querySpec.withKeyConditionExpression("table_hash_key = :v_table").withValueMap(new ValueMap().withString(":v_table", dbName + "-" + table))
+    querySpec.withKeyConditionExpression("tableHashKey = :v_table").withValueMap(new ValueMap().withString(":v_table", dbName + "-" + table))
 
     val items = index.query(querySpec)
     val iterator = items.iterator()
@@ -215,7 +216,7 @@ object GlueApp {
     sqlContext.sql(
       s"""
          |select
-         |concat_ws('', collect_list(constraint_code)) as combined_validation_code
+         |concat_ws('', collect_list(constraintCode)) as combinedValidationCode
          |from constraintSuggestions
          |where enable = 'Y'
          |""".stripMargin
@@ -228,7 +229,7 @@ object GlueApp {
     sqlContext.sql(
       s"""
          |select
-         |concat_ws(' :: ', collect_list(analyzer_code)) as combined_analyzer_code
+         |concat_ws(' :: ', collect_list(analyzerCode)) as combinedAnalyzerCode
          |from constraintAnalysis
          |where enable = 'Y'
          |""".stripMargin

@@ -36,9 +36,12 @@ import org.apache.hadoop.io.LongWritable
 import com.amazon.deequ.suggestions.{ConstraintSuggestionRunner, Rules}
 import com.amazon.deequ.analyzers._
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Properties
+import java.util.UUID.randomUUID
 
 /** *
  *
@@ -159,21 +162,21 @@ object GlueApp {
         suggestions.map { constraint =>
           (column, constraint.description, constraint.codeForConstraint)
         }
-    }.toSeq.toDS().withColumn("uniqueID", monotonicallyIncreasingId)
+    }.toSeq.toDS()
 
-    suggestionDataFrame.createOrReplaceTempView("suggestionDataFrame")
-
-    val suggestionDataFrameWithUniqeId = spark.sql("select row_number() over (order by uniqueID) as row_num, * from suggestionDataFrame")
-
-    suggestionDataFrameWithUniqeId
-      .withColumn("suggestion_hash_key", concat(lit("##"), lit(glueTable), lit("##"), $"_1", lit("##"), $"row_num"))
+    val uuid = udf(() => java.util.UUID.randomUUID().toString)
+    val now = LocalDateTime.now().toString()+"Z"
+    suggestionDataFrame
+      .withColumn("id", uuid())      
       .withColumn("database", lit(glueDB))
       .withColumn("tablename", lit(glueTable))
       .withColumnRenamed("_1", "column")
       .withColumnRenamed("_2", "constraint")
-      .withColumnRenamed("_3", "constraint_code")
-      .withColumn("enable", lit("Y"))
-
+      .withColumnRenamed("_3", "constraintCode")
+      .withColumn("enable", lit("N"))
+      .withColumn("__typename", lit("DataQualitySuggestion"))
+      .withColumn("createdAt", lit(now))
+      .withColumn("updatedAt", lit(now))
   }
 
   /***

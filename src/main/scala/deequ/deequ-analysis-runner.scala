@@ -136,21 +136,21 @@ object GlueApp {
     var hadooprdd_add = sparkContext.hadoopRDD(jobConf_add, classOf[DynamoDBInputFormat], classOf[Text], classOf[DynamoDBItemWritable])
 
     val rdd_add: RDD[(String, String, String, String, String, String)] = hadooprdd_add.map {
-      case (text, dbwritable) => (dbwritable.getItem().get("analyzer_hash_key").toString(),
+      case (text, dbwritable) => (dbwritable.getItem().get("id").toString(),
         dbwritable.getItem().get("database").toString(),
         dbwritable.getItem().get("tablename").toString(),
         dbwritable.getItem().get("column").toString(),
-        dbwritable.getItem().get("analyzer_code").toString(),
+        dbwritable.getItem().get("analyzerCode").toString(),
         dbwritable.getItem().get("enable").toString())
     }
 
-    rdd_add.toDF.withColumn("analyzer_hash_key", col_extractValue($"_1"))
+    rdd_add.toDF.withColumn("id", col_extractValue($"_1"))
       .withColumn("database", col_extractValue($"_2"))
       .withColumn("tablename", col_extractValue($"_3"))
       .withColumn("column", col_extractValue($"_4"))
-      .withColumn("analyzer_code", col_extractValue($"_5"))
+      .withColumn("analyzerCode", col_extractValue($"_5"))
       .withColumn("enable", col_extractValue($"_6"))
-      .select("analyzer_hash_key", "database", "tablename", "column", "analyzer_code", "enable")
+      .select("id", "database", "tablename", "column", "analyzerCode", "enable")
 
   }
 
@@ -184,7 +184,7 @@ object GlueApp {
          |select
          |database,
          |tablename,
-         |concat_ws(' :: ', collect_list(analyzer_code)) as combined_analyzer_code
+         |concat_ws(' :: ', collect_list(analyzerCode)) as combinedAnalyzerCode
          |from analyzers
          |where enable = 'Y'
          |and database = '$glueDB'

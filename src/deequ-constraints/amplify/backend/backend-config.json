@@ -1,0 +1,26 @@
+{
+	"auth": {
+		"deequconstraints752dc94a": {
+			"service": "Cognito",
+			"providerPlugin": "awscloudformation",
+			"dependsOn": []
+		}
+	},
+	"api": {
+		"deequconstraints": {
+			"service": "AppSync",
+			"providerPlugin": "awscloudformation",
+			"output": {
+				"authConfig": {
+					"additionalAuthenticationProviders": [],
+					"defaultAuthentication": {
+						"authenticationType": "AMAZON_COGNITO_USER_POOLS",
+						"userPoolConfig": {
+							"userPoolId": "authdeequconstraints752dc94a"
+						}
+					}
+				}
+			}
+		}
+	}
+}
