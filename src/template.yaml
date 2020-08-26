@@ -170,12 +170,14 @@ Resources:
                   - s3:GetBucketLocation
                   - s3:GetBucketPolicy
                   - s3:GetEncryptionConfiguration
+                  - s3:GetObject
                   - s3:ListBucket
                   - s3:PutBucketAcl
                   - s3:PutBucketPolicy
                   - s3:PutBucketVersioning
                   - s3:PutBucketWebsite
                   - s3:PutEncryptionConfiguration
+                  - s3:PutObject
                   - s3:PutObjectAcl
               - Resource: "*"
                 Effect: Allow
@@ -218,13 +220,18 @@ Resources:
               - Resource: "*"
                 Effect: Allow
                 Action:
+                  - lambda:AddPermission
+                  - lambda:CreateEventSourceMapping
                   - lambda:CreateFunction
+                  - lambda:GetEventSourceMapping
                   - lambda:GetFunction
                   - lambda:GetFunctionConfiguration
                   - lambda:ListEventSourceMappings
                   - lambda:ListFunctions
                   - lambda:ListTags
+                  - lambda:InvokeFunction
                   - lambda:TagResource
+                  - lambda:UpdateEventSourceMapping
                   - lambda:UpdateFunctionCode
                   - lambda:UpdateFunctionConfiguration
               - Resource: "*"
