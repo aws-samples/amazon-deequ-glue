@@ -59,7 +59,7 @@ suggestions_job_name = args['glueSuggestionVerificationJob']
 verification_job_name = args['glueVerificationJob']
 profile_job_name = args['glueProfilerJob']
 glue_database = args['glueDatabase']
-glue_tables = args['glueTables'].split(',')
+glue_tables = [x.strip() for x in args['glueTables'].split(',')]
 
 # Determine which tables had Deequ data quality suggestions set up already
 suggestions_tables = []
