@@ -47,7 +47,7 @@ object GlueApp {
     val logger = LoggerFactory.getLogger(args("JOB_NAME"))
 
     val dbName = args("glueDatabase")
-    val tabNames = args("glueTables").split(",")
+    val tabNames = args("glueTables").split(",").map(_.trim)
 
     logger.info("Starting Data profile Job...")
 

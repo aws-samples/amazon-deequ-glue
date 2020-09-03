@@ -97,7 +97,7 @@ object GlueApp {
     val dynamodbSuggestionTableName = args("dynamodbSuggestionTableName")
     val dynamodbAnalysisTableName = args("dynamodbAnalysisTableName")
     val dbName = args("glueDatabase")
-    val tabNames = args("glueTables").split(",")
+    val tabNames = args("glueTables").split(",").map(_.trim)
     // Empty dataframes required for successful job compilation
     var suggestionCheckDF: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], StructType(Seq()))
     var analysisCheckDF: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], StructType(Seq()))
