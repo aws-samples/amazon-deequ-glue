@@ -4,6 +4,7 @@ import sys
 import time
 import logging
 
+from botocore.exceptions import ClientError
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
 from awsglue.utils import getResolvedOptions
@@ -15,6 +16,18 @@ logger.setLevel(logging.INFO)
 dynamodb = boto3.resource('dynamodb')
 glue = boto3.client('glue')
 ssm = boto3.client('ssm')
+
+
+def get_table_suffix(environment):
+    try:
+        appsync_api_id = ssm.get_parameter(
+            Name=f"/DataQuality/{environment}/AppSync/GraphQLApi")['Parameter']['Value']
+        return f"{appsync_api_id}-{env}"
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ParameterNotFound':
+            return f"{env}"
+        else:
+            raise e
 
 
 def get_suggestions(table, key_value):
@@ -51,10 +64,9 @@ args = getResolvedOptions(sys.argv, [
     'glueTables'])
 
 env = args['env']
-appsync_api_id = ssm.get_parameter(Name=f"/DataQuality/{env}/AppSync/GraphQLApi")['Parameter']['Value']
-
-suggestion_dynamodb_table_name = f"DataQualitySuggestion-{appsync_api_id}-{env}"
-analysis_dynamodb_table_name = f"DataQualityAnalyzer-{appsync_api_id}-{env}"
+table_suffix = get_table_suffix(env)
+suggestion_dynamodb_table_name = f"DataQualitySuggestion-{table_suffix}"
+analysis_dynamodb_table_name = f"DataQualityAnalyzer-{table_suffix}"
 suggestions_job_name = args['glueSuggestionVerificationJob']
 verification_job_name = args['glueVerificationJob']
 profile_job_name = args['glueProfilerJob']

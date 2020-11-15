@@ -32,7 +32,7 @@ import org.apache.hadoop.dynamodb.write.DynamoDBOutputFormat
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.io.LongWritable
 
-//Amazon Deequ Import
+//Deequ Import
 import com.amazon.deequ.suggestions.{ConstraintSuggestionRunner, Rules}
 import com.amazon.deequ.analyzers._
 import java.time.LocalDate

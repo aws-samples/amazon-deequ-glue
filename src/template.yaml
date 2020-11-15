@@ -8,6 +8,13 @@ Parameters:
   pArtifactsBucket:
     Description: The name of the artifacts bucket
     Type: String
+  pCreateFrontEnd:
+    Description: Set to true to create an AWS Amplify web UI
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
+    Default: "true"
   pEnv:
     Description: The environment name
     Type: String
@@ -15,12 +22,17 @@ Parameters:
 
 Globals:
   Function:
-      Runtime: python3.7
-      Handler: lambda_function.lambda_handler
+    Runtime: python3.7
+    Handler: lambda_function.lambda_handler
+
+Conditions:
+  EnableFrontEnd: !Equals [!Ref pCreateFrontEnd, "true"]
+  DisableFrontEnd: !Equals [!Ref pCreateFrontEnd, "false"]
 
 Resources:
   AmplifyDevBranch:
     Type: AWS::Amplify::Branch
+    Condition: EnableFrontEnd
     Properties:
       BranchName: !Ref pEnv
       AppId: !GetAtt AmplifyApp.AppId
@@ -28,37 +40,38 @@ Resources:
 
   AmplifyApp:
     Type: AWS::Amplify::App
+    Condition: EnableFrontEnd
     Properties:
       Name: deequ-constraints
       Repository: !Sub https://git-codecommit.${AWS::Region}.amazonaws.com/v1/repos/amazon-deequ-glue
       Description: Deequ - Data Quality Constraints
       IAMServiceRole: !GetAtt AmplifyServiceRole.Arn
       BuildSpec: |
-          version: 0.1
-          backend:
-            phases:
-              preBuild:
-                commands:
-                  - cd src/deequ-constraints
-                  - npm install -g @aws-amplify/cli
-              build:
-                commands:
-                  - amplifyPush --simple
-          frontend:
-            phases:
-              preBuild:
-                commands:
-                  - yarn install
-              build:
-                commands:
-                  - yarn run build
-            artifacts:
-              baseDirectory: src/deequ-constraints/build
-              files:
-                - '**/*'
-            cache:
-              paths: 
-                - src/deequ-constraints/node_modules/**/*
+        version: 0.1
+        backend:
+          phases:
+            preBuild:
+              commands:
+                - cd src/deequ-constraints
+                - npm install -g @aws-amplify/cli
+            build:
+              commands:
+                - amplifyPush --simple
+        frontend:
+          phases:
+            preBuild:
+              commands:
+                - yarn install
+            build:
+              commands:
+                - yarn run build
+          artifacts:
+            baseDirectory: src/deequ-constraints/build
+            files:
+              - '**/*'
+          cache:
+            paths:
+              - src/deequ-constraints/node_modules/**/*
 
   ######## EVENTS #########
   rDataQualityTriggerEventRule:
@@ -95,20 +108,19 @@ Resources:
   ######## IAM #########
   AmplifyServiceRole:
     Type: AWS::IAM::Role
+    Condition: EnableFrontEnd
     Properties:
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - amplify.amazonaws.com
             Action: sts:AssumeRole
       Path: /
       Policies:
-        -
-          PolicyName: "amplify-console-role"
+        - PolicyName: "amplify-console-role"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -287,7 +299,7 @@ Resources:
               - dynamodb:UpdateItem
               - dynamodb:PutItem
             Resource:
-            - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/DataQuality*
+              - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/DataQuality*
 
   rGlueJobsIAMRole:
     Type: AWS::IAM::Role
@@ -298,7 +310,7 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
-              - glue.amazonaws.com
+                - glue.amazonaws.com
             Action:
               - sts:AssumeRole
       Path: /
@@ -311,12 +323,12 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-            - Effect: Allow
-              Action:
-                - ssm:GetParameter
-                - ssm:GetParameters
-              Resource:
-                - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/DataQuality/${pEnv}/AppSync/GraphQLApi"
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource:
+                  - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/DataQuality/${pEnv}/AppSync/GraphQLApi"
 
   rGlueCrawlerRole:
     Type: AWS::IAM::Role
@@ -335,11 +347,11 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-            - Effect: Allow
-              Action:
-                - glue:StartCrawler
-              Resource:
-                - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${rGlueCrawler}
+              - Effect: Allow
+                Action:
+                  - glue:StartCrawler
+                Resource:
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${rGlueCrawler}
 
   rStatesExecutionRole:
     Type: AWS::IAM::Role
@@ -375,8 +387,7 @@ Resources:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - events.amazonaws.com
@@ -390,7 +401,52 @@ Resources:
               - Effect: Allow
                 Action:
                   - states:StartExecution
-                Resource:  !Ref rDataQualityStateMachine
+                Resource: !Ref rDataQualityStateMachine
+
+  ####### DYNAMODB #########
+  rDataQualitySuggestionsDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Condition: DisableFrontEnd
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: tableHashKey
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: table-index
+          KeySchema:
+            - AttributeName: tableHashKey
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TableName: !Sub DataQualitySuggestion-${pEnv}
+
+  rDataQualityAnalysisDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Condition: DisableFrontEnd
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: tableHashKey
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: table-index
+          KeySchema:
+            - AttributeName: tableHashKey
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TableName: !Sub DataQualityAnalyzer-${pEnv}
 
   ######## LAMBDA #########
   rGlueCrawlerLambdaFunction:
@@ -411,39 +467,38 @@ Resources:
     Type: AWS::StepFunctions::StateMachine
     Properties:
       StateMachineName: data-quality-sm
-      DefinitionString:
-        !Sub
-          - |-
-            {
-              "Comment": "Data Quality WorkFlow",
-              "StartAt": "Data Quality Controller",
-              "States": {
-                "Data Quality Controller": {
-                  "Type": "Task",
-                  "Resource": "arn:aws:states:::glue:startJobRun.sync",
-                  "Parameters": {
-                    "JobName": "${gController}",
-                    "Arguments": {
-                      "--glueDatabase.$":"$.glueDatabase",
-                      "--glueTables.$":"$.glueTables"
-                    }
-                  },
-                  "ResultPath": "$.output",
-                  "Next": "Run Glue Crawler"
+      DefinitionString: !Sub
+        - |-
+          {
+            "Comment": "Data Quality WorkFlow",
+            "StartAt": "Data Quality Controller",
+            "States": {
+              "Data Quality Controller": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                "Parameters": {
+                  "JobName": "${gController}",
+                  "Arguments": {
+                    "--glueDatabase.$":"$.glueDatabase",
+                    "--glueTables.$":"$.glueTables"
+                  }
                 },
-                "Run Glue Crawler": {
-                  "Type": "Task",
-                  "Resource": "${lCrawler}",
-                  "Comment": "Run Glue Crawler",
-                  "ResultPath": "$.statusCode",
-                  "End": true
-                }
+                "ResultPath": "$.output",
+                "Next": "Run Glue Crawler"
+              },
+              "Run Glue Crawler": {
+                "Type": "Task",
+                "Resource": "${lCrawler}",
+                "Comment": "Run Glue Crawler",
+                "ResultPath": "$.statusCode",
+                "End": true
               }
             }
-          - {
-              gController: !Ref rControllerGlueJob,
-              lCrawler: !GetAtt rGlueCrawlerLambdaFunction.Arn
-            }
+          }
+        - {
+            gController: !Ref rControllerGlueJob,
+            lCrawler: !GetAtt rGlueCrawlerLambdaFunction.Arn,
+          }
       RoleArn: !GetAtt rStatesExecutionRole.Arn
 
   ######## GLUE #########
@@ -455,15 +510,15 @@ Resources:
         PythonVersion: "3"
         ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-controller.py"
       DefaultArguments:
-        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
-        "--enable-metrics"                   : "true"
-        "--env"                              : !Ref pEnv
-        "--glueSuggestionVerificationJob"    : !Ref rSuggestionVerificationRunnerGlueJob
-        "--glueVerificationJob"              : !Ref rVerificationRunnerGlueJob
-        "--glueProfilerJob"                  : !Ref rProfilerRunnerGlueJob
-        "--glueDatabase"                     : "default"
-        "--glueTables"                       : "table1,table2"
-        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+        "--TempDir": !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--enable-metrics": "true"
+        "--env": !Ref pEnv
+        "--glueSuggestionVerificationJob": !Ref rSuggestionVerificationRunnerGlueJob
+        "--glueVerificationJob": !Ref rVerificationRunnerGlueJob
+        "--glueProfilerJob": !Ref rProfilerRunnerGlueJob
+        "--glueDatabase": "default"
+        "--glueTables": "table1,table2"
+        "--targetBucketName": !Sub "s3://${rDataQualityBucket}"
       ExecutionProperty:
         MaxConcurrentRuns: 10
       GlueVersion: "1.0"
@@ -478,19 +533,19 @@ Resources:
         Name: glueetl
         ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-suggestion-analysis-verification-runner.scala"
       DefaultArguments:
-        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
-        "--job-language"                     : "scala"
-        "--class"                            : "GlueApp"
-        "--enable-continuous-cloudwatch-log" : "true"
-        "--enable-continuous-log-filter"     : "true"
-        "--enable-metrics"                   : "true"
-        "--enable-glue-datacatalog"          : ""
-        "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
-        "--dynamodbSuggestionTableName"      : "default"
-        "--dynamodbAnalysisTableName"        : "default"
-        "--glueDatabase"                     : "default"
-        "--glueTables"                       : "table1,table2"
-        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+        "--TempDir": !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--job-language": "scala"
+        "--class": "GlueApp"
+        "--enable-continuous-cloudwatch-log": "true"
+        "--enable-continuous-log-filter": "true"
+        "--enable-metrics": "true"
+        "--enable-glue-datacatalog": ""
+        "--extra-jars": !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
+        "--dynamodbSuggestionTableName": "default"
+        "--dynamodbAnalysisTableName": "default"
+        "--glueDatabase": "default"
+        "--glueTables": "table1,table2"
+        "--targetBucketName": !Sub "s3://${rDataQualityBucket}"
       ExecutionProperty:
         MaxConcurrentRuns: 10
       GlueVersion: "2.0"
@@ -507,19 +562,19 @@ Resources:
         Name: glueetl
         ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-analysis-verification-runner.scala"
       DefaultArguments:
-        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
-        "--job-language"                     : "scala"
-        "--class"                            : "GlueApp"
-        "--enable-continuous-cloudwatch-log" : "true"
-        "--enable-continuous-log-filter"     : "true"
-        "--enable-metrics"                   : "true"
-        "--enable-glue-datacatalog"          : ""
-        "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
-        "--dynamodbSuggestionTableName"      : "default"
-        "--dynamodbAnalysisTableName"        : "default"
-        "--glueDatabase"                     : "default"
-        "--glueTables"                       : "table1,table2"
-        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+        "--TempDir": !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--job-language": "scala"
+        "--class": "GlueApp"
+        "--enable-continuous-cloudwatch-log": "true"
+        "--enable-continuous-log-filter": "true"
+        "--enable-metrics": "true"
+        "--enable-glue-datacatalog": ""
+        "--extra-jars": !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
+        "--dynamodbSuggestionTableName": "default"
+        "--dynamodbAnalysisTableName": "default"
+        "--glueDatabase": "default"
+        "--glueTables": "table1,table2"
+        "--targetBucketName": !Sub "s3://${rDataQualityBucket}"
       ExecutionProperty:
         MaxConcurrentRuns: 10
       MaxRetries: 0
@@ -536,17 +591,17 @@ Resources:
         Name: glueetl
         ScriptLocation: !Sub "s3://${pArtifactsBucket}/deequ/scripts/deequ-profile-runner.scala"
       DefaultArguments:
-        "--TempDir"                          : !Sub "s3://${pArtifactsBucket}/deequ/"
-        "--job-language"                     : "scala"
-        "--class"                            : "GlueApp"
-        "--enable-continuous-cloudwatch-log" : "true"
-        "--enable-continuous-log-filter"     : "true"
-        "--enable-metrics"                   : "true"
-        "--enable-glue-datacatalog"          : ""
-        "--extra-jars"                       : !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
-        "--glueDatabase"                     : "default"
-        "--glueTables"                       : "table1,table2"
-        "--targetBucketName"                 : !Sub "s3://${rDataQualityBucket}"
+        "--TempDir": !Sub "s3://${pArtifactsBucket}/deequ/"
+        "--job-language": "scala"
+        "--class": "GlueApp"
+        "--enable-continuous-cloudwatch-log": "true"
+        "--enable-continuous-log-filter": "true"
+        "--enable-metrics": "true"
+        "--enable-glue-datacatalog": ""
+        "--extra-jars": !Sub "s3://${pArtifactsBucket}/deequ/jars/deequ-1.0.3-RC1.jar"
+        "--glueDatabase": "default"
+        "--glueTables": "table1,table2"
+        "--targetBucketName": !Sub "s3://${rDataQualityBucket}"
       ExecutionProperty:
         MaxConcurrentRuns: 10
       MaxRetries: 0
@@ -576,9 +631,10 @@ Resources:
 
   ######## SSM #########
   AmplifyAppIdSSM:
+    Condition: EnableFrontEnd
     Type: AWS::SSM::Parameter
     Properties:
-      Name: "/DataQuality/Amplify/AppID"
-      Type: "String"
-      Value:  !Select [ "1", !Split ["/", !Ref AmplifyApp]]
-      Description: "Data Quality Amplify App Id"
+      Name: /DataQuality/Amplify/AppID
+      Type: String
+      Value: !GetAtt AmplifyApp.AppId
+      Description: Data Quality Amplify App Id

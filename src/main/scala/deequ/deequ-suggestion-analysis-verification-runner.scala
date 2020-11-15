@@ -30,7 +30,7 @@ import org.apache.hadoop.dynamodb.write.DynamoDBOutputFormat
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.io.LongWritable
 
-//Amazon Deequ Import
+//Deequ Import
 import com.amazon.deequ.constraints.Constraint
 import com.amazon.deequ.suggestions.{ConstraintSuggestion, ConstraintSuggestionResult, ConstraintSuggestionRunner, Rules}
 //Verification and Analysis Imports
