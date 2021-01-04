@@ -1,5 +1,8 @@
 ## Serverless Data Quality with Deequ on AWS Glue
 
+### Motivation
+Read our [AWS Big Data Blog](https://aws.amazon.com/blogs/big-data/building-a-serverless-data-quality-and-analysis-framework-with-deequ-and-aws-glue/) for an in-depth look at this solution.
+
 [Deequ](https://github.com/awslabs/deequ) is an open source library built on top of Apache Spark for defining “unit tests for data”. It is used internally at Amazon for verifying the quality of large production datasets, particularly to:
 
 * Suggest data quality constraints on input tables/files
@@ -9,10 +12,10 @@
 
 More details on Deequ can be found in this [AWS Blog](https://aws.amazon.com/blogs/big-data/test-data-quality-at-scale-with-deequ/).
 
-A serverless data quality framework based on Deequ and running on AWS Glue is  showcased in this repository. It takes a database and tables in the AWS Glue Catalog as inputs and outputs various data quality metrics into S3. Additionally, it performs an [automatic generation of constraints](https://github.com/awslabs/deequ/blob/master/src/main/scala/com/amazon/deequ/examples/constraint_suggestion_example.md) on previously unseen data. The suggestions are stored in a DynamoDB table and can be reviewed and amended at any point by data owners in a UI. All constraints are **disabled** by default. Once enabled, they are used by the Glue jobs to carry out the data quality checks on the tables.
+A serverless data quality framework based on Deequ and running on AWS Glue is  showcased in this repository. It takes a database and tables in the AWS Glue Catalog as inputs and outputs various data quality metrics into S3. Additionally, it performs an [automatic generation of constraints](https://github.com/awslabs/deequ/blob/master/src/main/scala/com/amazon/deequ/examples/constraint_suggestion_example.md) on previously unseen data. The suggestions are stored in DynamoDB tables and can be reviewed and amended at any point by data owners in a UI. All constraints are **disabled** by default. Once enabled, they are used by the Glue jobs to carry out the data quality checks on the tables.
 
 ### Deployment
-To deploy the infrastructure and code, you'll need an AWS account and a correctly [configured AWS profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) with enough permissions to create the architecture below (Administrator rights are recommended).
+To deploy the infrastructure and code, you'll need an AWS account and a correctly [configured AWS profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html) with enough permissions to create the architecture below - Administrator rights are recommended.
 
 ```bash
 cd ./src
