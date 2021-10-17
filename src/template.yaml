@@ -185,7 +185,9 @@ Resources:
                   - s3:GetObject
                   - s3:ListBucket
                   - s3:PutBucketAcl
+                  - s3:PutBucketEncryption
                   - s3:PutBucketPolicy
+                  - s3:PutBucketTagging
                   - s3:PutBucketVersioning
                   - s3:PutBucketWebsite
                   - s3:PutEncryptionConfiguration
