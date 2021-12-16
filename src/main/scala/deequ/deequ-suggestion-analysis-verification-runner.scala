@@ -19,7 +19,6 @@ import org.apache.spark.rdd.RDD
 import scala.util.matching.Regex
 import java.util.HashMap
 
-import org.slf4j.LoggerFactory
 import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.dynamodb.DynamoDBItemWritable
@@ -61,7 +60,6 @@ object GlueApp {
     val spark = glueContext.getSparkSession
     val args = GlueArgParser.getResolvedOptions(sysArgs, Seq("JOB_NAME", "dynamodbSuggestionTableName", "dynamodbAnalysisTableName", "glueDatabase", "glueTables", "targetBucketName").toArray)
     Job.init(args("JOB_NAME"), glueContext, args.asJava)
-    val logger = LoggerFactory.getLogger(args("JOB_NAME"))
 
     val dynamodbSuggestionTableName = args("dynamodbSuggestionTableName")
     val dynamodbAnalysisTableName = args("dynamodbAnalysisTableName")
@@ -79,12 +77,9 @@ object GlueApp {
 
     import spark.implicits._
 
-    logger.info("Start Job")
     for (tabName <- tabNames) {
-      logger.info("Reading Source database: " + dbName + " and table: " + tabName)
 
       val glueDF = glueContext.getCatalogSource(database = dbName, tableName = tabName, redshiftTmpDir = "", transformationContext = "dataset").getDynamicFrame().toDF()
-      logger.info("Running Constraint Suggestor for database: " + dbName + "and table: " + tabName)
 
       val suggestionResult = {
         ConstraintSuggestionRunner()
@@ -121,15 +116,12 @@ object GlueApp {
 
       writeDStoS3(suggestionDataFrameRenamed, args("targetBucketName"), "constraint-suggestion-results", dbName, tabName, getYear, getMonth, getDay, getTimestamp)
 
-      logger.info("Write Suggested Constraints Into Dynamo DB:" + args("dynamodbSuggestionTableName"))
-
       writeToDynamoDB(suggestionDataFrameRenamed, dynamodbSuggestionTableName)
 
       verificationRunner(glueDF, allConstraints, dbName, tabName, getYear, getMonth, getDay, getTimestamp)
       analysisRunner(glueDF, allConstraints, dbName, tabName, getYear, getMonth, getDay, getTimestamp)
     }
 
-    logger.info("Stop Job")
     Job.commit()
 
 

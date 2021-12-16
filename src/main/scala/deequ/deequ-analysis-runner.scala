@@ -21,7 +21,6 @@ import org.apache.spark.sql.DataFrame
 import scala.util.matching.Regex
 import java.util.HashMap
 
-import org.slf4j.LoggerFactory
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.text.SimpleDateFormat
@@ -84,9 +83,6 @@ object GlueApp {
         "targetBucketPrefix").toArray)
 
     Job.init(args("JOB_NAME"), glueContext, args.asJava)
-    val logger = LoggerFactory.getLogger(args("JOB_NAME"))
-
-    logger.info("Start Job")
 
     //***********************************************************************//
     // Step2: Extracting analysis constraints from DynamoDB using input GLUE table
@@ -118,7 +114,6 @@ object GlueApp {
 
     Job.commit()
 
-    logger.info("Stop Job")
   }
 
   /***

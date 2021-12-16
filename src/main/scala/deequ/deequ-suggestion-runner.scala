@@ -21,7 +21,6 @@ import scala.util.matching.Regex
 import java.util.HashMap
 
 import GlueApp.getTimestamp
-import org.slf4j.LoggerFactory
 import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.dynamodb.DynamoDBItemWritable
@@ -71,9 +70,6 @@ object GlueApp {
       "targetBucketName",
       "targetBucketPrefix").toArray)
     Job.init(args("JOB_NAME"), glueContext, args.asJava)
-    val logger = LoggerFactory.getLogger(args("JOB_NAME"))
-
-    logger.info("Start Job")
 
     //***********************************************************************//
     // Step2: Get the list of Glue Tables from DynamoDB table
