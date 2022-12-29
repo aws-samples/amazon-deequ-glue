@@ -95,6 +95,8 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub data-quality-${AWS::Region}-${AWS::AccountId}
+      VersioningConfiguration:
+        Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
